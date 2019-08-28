@@ -275,7 +275,7 @@ PROGMEM const char* const custom_reset_string[] = {
 #define MQTT_USER               ""          // Default MQTT broker usename
 #define MQTT_PASS               ""          // Default MQTT broker password
 #define MQTT_PORT               1883        // MQTT broker port
-#define MQTT_TOPIC              "/test/sonoffsc"    // Default MQTT base topic
+#define MQTT_TOPIC              "sonoffsc/"    // Default MQTT base topic
 #define MQTT_RETAIN             true        // MQTT retain flag
 #define MQTT_QOS                0           // MQTT QoS value for all messages
 #define MQTT_KEEPALIVE          30          // MQTT keepalive value
@@ -287,7 +287,7 @@ PROGMEM const char* const custom_reset_string[] = {
 #define MQTT_SKIP_RETAINED      1           // Skip retained messages on connection
 #define MQTT_SKIP_TIME          1000        // Skip messages for 1 second anter connection
 
-#define MQTT_USE_JSON           0           // Group messages in a JSON body
+#define MQTT_USE_JSON           1           // Group messages in a JSON body
 #define MQTT_USE_JSON_DELAY     100         // Wait this many ms before grouping messages
 
 // Internal MQTT events (do not change)
@@ -382,14 +382,14 @@ PROGMEM const char* const custom_reset_string[] = {
 // -----------------------------------------------------------------------------
 
 #define SENSOR_EVERY            60
-#define SENSOR_CLAP_ENABLED     1
+#define SENSOR_CLAP_ENABLED     0
 
 #define SENSOR_TEMPERATURE_MIN  -10
 #define SENSOR_TEMPERATURE_MAX  50
 #define SENSOR_PRESSURE_MIN     870
 #define SENSOR_PRESSURE_MAX     1100
 #define SENSOR_DUST_MIN         0
-#define SENSOR_DUST_MAX         1
+#define SENSOR_DUST_MAX         200
 #define SENSOR_HUMIDITY_MIN     10
 #define SENSOR_HUMIDITY_MAX     100
 

@@ -5,8 +5,6 @@ Custom firmware for the Sonoff SC (both for the ATMega328P and the ESP8266).
 [![version](https://badge.fury.io/gh/xoseperez%2Fsonoffsc.svg)](CHANGELOG.md)
 [![travis](https://travis-ci.org/xoseperez/sonoffsc.svg?branch=master)](https://travis-ci.org/xoseperez/sonoffsc)
 [![license](https://img.shields.io/github/license/xoseperez/sonoffsc.svg)](LICENSE)
-[![donate](https://img.shields.io/badge/donate-PayPal-blue.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=xose%2eperez%40gmail%2ecom&lc=US&no_note=0&currency_code=EUR&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHostedGuest)
-[![twitter](https://img.shields.io/twitter/follow/xoseperez.svg?style=social)](https://twitter.com/intent/follow?screen_name=xoseperez)
 
 ## Features
 
@@ -17,12 +15,6 @@ Custom firmware for the Sonoff SC (both for the ATMega328P and the ESP8266).
     * **Sharp GP2Y1010AU0F**
     * **GM55 LDR**
     * **Electret microphone**
-* Support for extra sensors and actuators
-    * **WS2812 RGB LED ring** for notifications
-    * Small **fan** to move air inside the enclosure and get better dust readings
-    * **Microwave based presence detector
-* **Clap monitoring** (switch light on/off clapping your hands)
-* **Support for RGB LED ring** for notifications you can drive via MQTT messages (thanks to Blair Thompson)
 * Fast asynchronous **HTTP Server**
     * Basic authentication
     * Web-based configuration

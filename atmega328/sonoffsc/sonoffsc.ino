@@ -18,8 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-
-#include <WS2812FX.h>
 #include <DHT.h>
 #include <SerialLink.h>
 #include <Ticker.h>
@@ -44,18 +42,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DHT_PIN                 6
 #ifndef DHT_TYPE
 // Uncomment the sensor type that you have (comment the other if applicable)
-//#define DHT_TYPE                DHT11
-#define DHT_TYPE                DHT22
+#define DHT_TYPE                DHT11
+//#define DHT_TYPE                DHT22
 #endif
 #define DHT_EXPIRES             60000
-
-#define RGB_PIN			        12
-#define RGB_COUNT               24
-#define RGB_TIMEOUT             0
-#define RGB_SPEED               255
-#define RGB_BRIGHTNESS          255
-#define RGB_COLOR               0x000000
-#define RGB_EFFECT              FX_MODE_STATIC
 
 #define ADC_COUNTS              1024
 #define MICROPHONE_PIN          A2
@@ -110,18 +100,6 @@ const PROGMEM char at_move[] = "AT+MOVE";
 // Globals
 // -----------------------------------------------------------------------------
 
-// Parameter 1 = number of pixels in strip
-// Parameter 2 = pin number (most are valid)
-// Parameter 3 = pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-WS2812FX ws2812fx = WS2812FX(RGB_COUNT, RGB_PIN, NEO_GRB + NEO_KHZ800);
-bool rgbRunning = false;
-unsigned long rgbTimeout = RGB_TIMEOUT;
-unsigned long rgbStart = 0;
-
 SerialLink link(Serial);
 DHT dht(DHT_PIN, DHT_TYPE);
 int clapTimings[CLAP_BUFFER_SIZE];
@@ -151,12 +129,6 @@ int light = NULL_VALUE;
 int noise = NULL_VALUE;
 bool movement;
 
-//unsigned int noise_count = 0;
-//unsigned long noise_sum = 0;
-//unsigned int noise_peak = 0;
-//unsigned int noise_min = 1024;
-//unsigned int noise_max = 0;
-
 unsigned int noise_buffer[NOISE_BUFFER_SIZE] = {0};
 unsigned int noise_buffer_pointer = 0;
 unsigned int noise_buffer_sum = 0;
@@ -174,45 +146,24 @@ bool fanStatus() {
 }
 
 // -----------------------------------------------------------------------------
-// RGB LED
-// -----------------------------------------------------------------------------
-
-void rgbLoop() {
-
-    if (rgbRunning && (rgbTimeout > 0)) {
-        if (millis() - rgbStart > rgbTimeout) {
-            ws2812fx.setMode(FX_MODE_FADE);
-            rgbRunning = false;
-        }
-    }
-
-    ws2812fx.service();
-
-}
-
-void rgbOff() {
-    ws2812fx.setColor(0);
-    ws2812fx.setMode(FX_MODE_STATIC);
-}
-
-void rgbEffect(unsigned int effect) {
-    ws2812fx.setMode(effect);
-    rgbStart = millis();
-    rgbRunning = true;
-}
-
-void rgbColor(unsigned long color) {
-    ws2812fx.setColor(color);
-    rgbStart = millis();
-    rgbRunning = true;
-}
-
-// -----------------------------------------------------------------------------
 // SENSORS
 // -----------------------------------------------------------------------------
 
+// Experimentaly taken the samples and from the points generated 
+// the function (0.846x^2 + 0.4764x + 0.1918).
 int getLight() {
-    return map(analogRead(LDR_PIN), 0, ADC_COUNTS, 100, 0);
+    
+    int percent = map(analogRead(LDR_PIN), 0, ADC_COUNTS, 100, 0);
+
+    float logPercent = log10f(percent);
+    float logLux = 0.846 * pow(logPercent, 2) + 0.4764 * logPercent + 0.1918;
+
+    if (logLux > 4.1)
+        logLux = logLux + (((logLux - 4.0) / 0.429) * 0.55);
+
+    int lux = pow(10, logLux);
+
+    return lux;
 }
 
 // 0.5V ==> 100ug/m3
@@ -226,11 +177,9 @@ float getDust() {
 	delayMicroseconds(SHARP_DELTA_TIME);
 	digitalWrite(SHARP_LED_PIN, HIGH);
 
-    // mg/m3
 	float dust = 170.0 * reading * (5.0 / 1024.0) - 100.0;
     if (dust < 0) dust = 0;
     return dust;
-
 }
 
 void getDustDefer(bool push = false) {
@@ -281,37 +230,35 @@ int getHumidity() {
     return humidity;
 }
 
+// Experimentaly taken the samples and from the points generated 
+// the functions.
 int getNoise() {
 
-    int value = 0;
+    float value = pow(noise_buffer_sum / NOISE_BUFFER_SIZE, 0.33333333);
+    float dB = 0;
 
-    //if (noise_count > 0) {
+    if (value <= 3.71)
+        dB = -0.3016 * pow(value, 2) + 2.1446 * value - 0.0211;
+    else if (3.71 < value && value <= 4.5)
+        dB = 0.1766 * value + 3.1216;
+    else
+        dB = -12310.59 + (8277.045 * value) - (1854.372 * pow(value, 2)) + (138.4782 * pow(value, 3));
+    
+    dB = pow(dB, 3);
 
-        value = noise_buffer_sum / NOISE_BUFFER_SIZE;
+    if (dB < 0)
+        dB = 0;
+    else if (dB > 100)
+        dB = 100;
 
-        //Serial.print("CNT : "); Serial.println(noise_count);
-        //Serial.print("SUM : "); Serial.println(noise_sum / noise_count);
-        //Serial.print("PEAK: "); Serial.println(noise_peak / noise_count);
-        //Serial.print("MAX : "); Serial.println(noise_max);
-        //Serial.print("MIN : "); Serial.println(noise_min);
-        //Serial.print("VAL : "); Serial.println(value);
-
-        //noise_count = 0;
-        //noise_sum = 0;
-        //noise_peak = 0;
-        //noise_min = ADC_COUNTS;
-        //noise_max = 0;
-
-    //}
-
-    return value;
+    return dB;
 
 }
 
 // -----------------------------------------------------------------------------
 // MICROWAVE
 // -----------------------------------------------------------------------------
-
+/*
 bool getMovement() {
     return digitalRead(MW_PIN) == HIGH;
 }
@@ -323,11 +270,10 @@ void moveLoop(bool force = false) {
     }
     movement = value;
 }
-
+*/
 // -----------------------------------------------------------------------------
 // MIC
 // -----------------------------------------------------------------------------
-
 void clapDecode() {
 
     // at least 2 claps
@@ -428,48 +374,33 @@ void noiseLoop() {
     static unsigned int triggered = 0;
 
     unsigned int sample;
-    //unsigned int count = 0;
-    //unsigned long sum;
     unsigned int min = ADC_COUNTS;
     unsigned int max = 0;
 
-    // Check MIC every NOISE_READING_DELAY
-    // if (millis() - last_reading < NOISE_READING_DELAY) return;
     last_reading = millis();
 
     while (millis() - last_reading < NOISE_READING_WINDOW) {
         sample = analogRead(MICROPHONE_PIN);
-        //++count;
-        //sum += sample;
         if (sample < min) min = sample;
         if (sample > max) max = sample;
     }
 
-    //++noise_count;
-    //unsigned int average = 100 * (sum / count) / ADC_COUNTS;
-    //noise_sum += average;
-
     unsigned int peak = map(max - min, 0, ADC_COUNTS, 0, 100);
-    //Serial.println(peak);
     if (clap) clapRecord(peak);
 
     noise_buffer_sum = noise_buffer_sum + peak - noise_buffer[noise_buffer_pointer];
     noise_buffer[noise_buffer_pointer] = peak;
     noise_buffer_pointer = (noise_buffer_pointer + 1) % NOISE_BUFFER_SIZE;
 
-    //noise_peak += peak;
-    //if (max > noise_max) noise_max = max;
-    //if (min < noise_min) noise_min = min;
-
     if (threshold > 0) {
-        unsigned int value = noise_buffer_sum / NOISE_BUFFER_SIZE;
-        if (value > threshold) {
-            if (value > triggered) {
-                link.send_P(at_noise, value);
-                triggered = value;
+        unsigned int valuedB = getNoise();
+        if (valuedB > threshold) {
+            if (valuedB > triggered) {
+                link.send_P(at_noise, valuedB);
+                triggered = valuedB;
             }
         } else if (triggered > 0) {
-            link.send_P(at_noise, value);
+            link.send_P(at_noise, valuedB);
             triggered = 0;
         }
     }
@@ -489,7 +420,7 @@ bool linkGet(char * key) {
     }
 
     if (strcmp_P(key, at_fan) == 0) {
-        link.send(key, fanStatus() ? 1 : 0, false);
+        link.send(key, 0, false);
         return true;
     }
 
@@ -552,32 +483,7 @@ bool linkGet(char * key) {
     }
 
     if (strcmp_P(key, at_move) == 0) {
-        link.send(key, getMovement() ? 1 : 0, false);
-        return true;
-    }
-
-    if (strcmp_P(key, at_timeout) == 0) {
-        link.send(key, rgbTimeout, false);
-        return true;
-    }
-
-    if (strcmp_P(key, at_effect) == 0) {
-        link.send(key, ws2812fx.getMode(), false);
-        return true;
-    }
-
-    if (strcmp_P(key, at_color) == 0) {
-        link.send(key, ws2812fx.getColor(), false);
-        return true;
-    }
-
-    if (strcmp_P(key, at_speed) == 0) {
-        link.send(key, ws2812fx.getSpeed(), false);
-        return true;
-    }
-
-    if (strcmp_P(key, at_bright) == 0) {
-        link.send(key, ws2812fx.getBrightness(), false);
+        link.send(key, 0, false);
         return true;
     }
 
@@ -628,41 +534,6 @@ bool linkSet(char * key, long value) {
         return true;
     }
 
-    if (strcmp_P(key, at_timeout) == 0) {
-        if (0 <= value) {
-            rgbTimeout = value;
-            return true;
-        }
-	}
-
-	if (strcmp_P(key, at_color) == 0) {
-        if (0 <= value && value <= 0xFFFFFF) {
-            rgbColor(value);
-            return true;
-        }
-	}
-
-    if (strcmp_P(key, at_effect) == 0) {
-        if (0 <= value && value < MODE_COUNT) {
-            rgbEffect(value);
-            return true;
-        }
-	}
-
-    if (strcmp_P(key, at_speed) == 0) {
-        if (SPEED_MIN <= value && value <= SPEED_MAX) {
-            ws2812fx.setSpeed(value);
-            return true;
-        }
-	}
-
-    if (strcmp_P(key, at_bright) == 0) {
-        if (BRIGHTNESS_MIN <= value && value <= BRIGHTNESS_MAX) {
-            ws2812fx.setBrightness(value);
-            return true;
-        }
-	}
-
     return false;
 
 }
@@ -704,18 +575,6 @@ void setup() {
 
 	// Setup the DHT Thermometer/Humidity Sensor
     dht.begin();
-
-	// Neopixel setup and start animation
-    ws2812fx.init();
-    ws2812fx.setBrightness(RGB_BRIGHTNESS);
-    ws2812fx.setSpeed(RGB_SPEED);
-    ws2812fx.setColor(RGB_COLOR);
-    ws2812fx.setMode(RGB_EFFECT);
-    ws2812fx.start();
-
-    rgbStart = millis();
-    rgbRunning = true;
-
 }
 
 void loop() {
@@ -749,13 +608,11 @@ void loop() {
         noise = getNoise();
         if (push) link.send_P(at_noise, noise, false);
 
-        moveLoop(true);
+        //moveLoop(true);
 
     }
 
     fanTicker.update();
     noiseLoop();
-    moveLoop();
-    rgbLoop();
-
+    /*moveLoop();*/
 }

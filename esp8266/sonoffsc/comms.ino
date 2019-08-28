@@ -90,7 +90,7 @@ bool commsSet(char * key, long value) {
 
     if (strcmp_P(key, at_light) == 0) {
         light = value;
-        if (light < 0 || 100 < light) return false;
+        if (light < 0 || 200000 < light) return false;
         mqttSend(getSetting("mqttTopicLight", MQTT_TOPIC_LIGHT).c_str(), String(light).c_str());
         domoticzSend("dczIdxLight", light);
         sprintf(buffer, "{\"sensorLight\": %d}", light);
@@ -99,7 +99,7 @@ bool commsSet(char * key, long value) {
     }
 
     if (strcmp_P(key, at_dust) == 0) {
-        dust = (float) value / 100;
+        dust = (float) value;
         if (dust < SENSOR_DUST_MIN || SENSOR_DUST_MAX < dust) return false;
         mqttSend(getSetting("mqttTopicDust", MQTT_TOPIC_DUST).c_str(), String(dust).c_str());
         domoticzSend("dczIdxDust", dust);
